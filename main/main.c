@@ -15,26 +15,15 @@
 volatile uint64_t start_time = 0;
 volatile uint64_t stop_time = 0;
 volatile bool new_data = false;
-volatile bool reading_active = false;
 
 void echo_isr(uint gpio, uint32_t events) {
     if (events & GPIO_IRQ_EDGE_RISE) {
-        start_time = time_us_64();  // Captura o tempo quando o Echo sobe
+        start_time = time_us_64();  
     } 
     if (events & GPIO_IRQ_EDGE_FALL) {
-        stop_time = time_us_64();   // Captura o tempo quando o Echo desce
-        new_data = true;            // Indica que há uma nova leitura
+        stop_time = time_us_64();   
+        new_data = true;            
     }
-}
-
-void start_reading() {
-    reading_active = true;
-    printf("Leitura iniciada.\n");
-}
-
-void stop_reading() {
-    reading_active = false;
-    printf("Leitura parada.\n");
 }
 
 void init_uart() {
@@ -72,7 +61,7 @@ void read_distance() {
 
     if (new_data) {
         uint64_t pulse_duration = stop_time - start_time;
-        float distance_cm = pulse_duration / 58.0;  // Conversão do tempo para cm
+        float distance_cm = pulse_duration / 58.0;  
         print_time();
         printf("%.2f cm\n", distance_cm);
         new_data = false;
@@ -82,13 +71,16 @@ void read_distance() {
     }
 }
 
-void process_terminal() {
+bool process_terminal(bool reading_active) {
     int caracter = getchar_timeout_us(1000);
     if (caracter == 's') {
-        start_reading();
+        printf("Leitura iniciada.\n");
+        return true;
     } else if (caracter == 'p') {
-        stop_reading();
+        printf("Leitura parada.\n");
+        return false;
     }
+    return reading_active;
 }
 
 int main() {
@@ -102,8 +94,10 @@ int main() {
 
     printf("Sistema pronto. Pressione 's' para iniciar ou 'p' para parar.\n");
 
+    bool reading_active = false;
+
     while (1) {
-        process_terminal();
+        reading_active = process_terminal(reading_active);
         if (reading_active) {
             read_distance();
         }
